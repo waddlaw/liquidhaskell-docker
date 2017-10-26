@@ -12,8 +12,16 @@ RUN stack install
 FROM ubuntu:16.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libgmp-dev \
-      z3
+      z3 \
+    && apt-get clean
 COPY --from=build-lh /root/.local/bin/liquid /usr/local/bin/liquid
 COPY --from=build-lh /root/.local/bin/fixpoint /usr/local/bin/fixpoint
 COPY --from=build-lh /root/.local/bin/gradual /usr/local/bin/gradual
 COPY --from=build-lh /root/.local/bin/target /usr/local/bin/target
+
+RUN useradd -m -d /home/liquid -s /bin/bash liquid
+RUN mkdir /etc/sudoers.d
+RUN echo "liquid ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/liquid && chmod 0440 /etc/sudoers.d/liquid
+ENV HOME /home/liquid
+WORKDIR /home/liquid
+USER liquid
