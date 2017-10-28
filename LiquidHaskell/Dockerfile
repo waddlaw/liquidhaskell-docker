@@ -1,27 +1,27 @@
-FROM ubuntu:16.04 AS build-lh
-RUN apt-get update && apt-get install -y \
-      curl \
-      libtinfo-dev
+FROM wunderseltsam/constraint-solvers AS build-z3
+
+FROM alpine:3.6 AS build-lh
+# INSTALL BASIC DEV TOOLS, GHC, GMP & ZLIB
+RUN apk --update add alpine-sdk git ca-certificates ghc gmp-dev zlib-dev
+# GRAB A RECENT BINARY OF STACK
 RUN curl -sSL https://get.haskellstack.org/ | sh
+# COMPILE
 RUN git clone --recursive https://github.com/ucsd-progsys/liquidhaskell.git
 WORKDIR liquidhaskell
-RUN stack setup
-RUN stack build
-RUN stack install
+RUN git checkout master
+RUN stack --local-bin-path /sbin install --system-ghc
+# COMPRESS WITH UPX
+RUN echo http://dl-cdn.alpinelinux.org/alpine/edge/community/ >> /etc/apk/repositories
+RUN apk --update add upx=3.94-r0
+RUN upx --best --ultra-brute /sbin/fixpoint
+RUN upx --best --ultra-brute /sbin/liquid
+RUN upx --best --ultra-brute /sbin/target
 
-FROM ubuntu:16.04
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      libgmp-dev \
-      z3 \
-    && apt-get clean
-COPY --from=build-lh /root/.local/bin/liquid /usr/local/bin/liquid
-COPY --from=build-lh /root/.local/bin/fixpoint /usr/local/bin/fixpoint
-COPY --from=build-lh /root/.local/bin/gradual /usr/local/bin/gradual
-COPY --from=build-lh /root/.local/bin/target /usr/local/bin/target
-
-RUN useradd -m -d /home/liquid -s /bin/bash liquid
-RUN mkdir /etc/sudoers.d
-RUN echo "liquid ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/liquid && chmod 0440 /etc/sudoers.d/liquid
-ENV HOME /home/liquid
-WORKDIR /home/liquid
-USER liquid
+FROM alpine:3.6
+RUN apk --update --no-cache add gcc gmp-dev zlib-dev libffi-dev
+COPY --from=build-lh /usr/lib/ghc-8.0.2/ /usr/lib/ghc-8.0.2/
+COPY --from=build-lh /sbin/liquid /sbin/liquid
+COPY --from=build-lh /sbin/fixpoint /sbin/fixpoint
+COPY --from=build-lh /sbin/target /sbin/target
+COPY --from=build-lh /liquidhaskell/.stack-work/install/x86_64-linux/lts-8.9/8.0.2/share/x86_64-linux-ghc-8.0.2/liquidhaskell-0.8.0.5/ /liquidhaskell/.stack-work/install/x86_64-linux/lts-8.9/8.0.2/share/x86_64-linux-ghc-8.0.2/liquidhaskell-0.8.0.5/
+COPY --from=build-z3 /usr/local/bin/z3 /sbin/z3
