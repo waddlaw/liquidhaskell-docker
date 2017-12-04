@@ -25,7 +25,6 @@ RUN apk add upx=3.94-r0
 RUN upx --best --ultra-brute /sbin/fixpoint
 RUN upx --best --ultra-brute /sbin/liquid
 RUN upx --best --ultra-brute /sbin/target
-RUN upx --best --ultra-brute /usr/bin/ghc
 
 FROM alpine:3.6
 RUN apk --update --no-cache add gcc gmp-dev zlib-dev libffi-dev
